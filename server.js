@@ -29,7 +29,7 @@ const pool = mysql.createPool({
     connectionLimit: 10
 });
 
-// Unified API endpoint: combines login attempts and CSV/attendance logs for the dashboard
+// Unified API endpoint tracking both logins and live CSV/attendance imports from biometric_daily
 app.get('/api/logs', async (req, res) => {
     try {
         const [rows] = await pool.query(`
@@ -45,20 +45,21 @@ app.get('/api/logs', async (req, res) => {
             UNION ALL
             
             SELECT 
-                id + 100000 AS id, 
-                CASE WHEN processed = 1 THEN 'CSV_UPLOAD_SUCCESS' ELSE 'CSV_UPLOAD_PENDING' END AS event_type,
-                CONCAT('User: ', device_user_id) AS user_identifier,
-                COALESCE(source, 'System Upload') AS source_info,
-                CONCAT('Punch Time: ', punch_time, ' | Processed: ', processed) AS details,
-                received_at AS created_at 
-            FROM attendance_logs
+                b.id + 200000 AS id, 
+                'CSV_UPLOAD_SUCCESS' AS event_type,
+                CONCAT('Employee PK: ', b.employee_id) AS user_identifier,
+                COALESCE(u.full_name, 'CSV Import Tool') AS source_info,
+                CONCAT('Date: ', b.att_date, ' | Hours: ', b.hours_worked, ' | OT: ', b.overtime_hours) AS details,
+                COALESCE(b.created_at, b.att_date) AS created_at 
+            FROM biometric_daily b
+            LEFT JOIN users u ON u.id = b.entered_by
             
             ORDER BY created_at DESC 
             LIMIT 100
         `);
         res.json({ success: true, logs: rows });
     } catch (err) {
-        // Fallback to login_attempts only if attendance_logs query encounters any issue
+        // Fallback to login_attempts if biometric_daily query encounters column discrepancies
         try {
             const [fallbackRows] = await pool.query(`
                 SELECT 
