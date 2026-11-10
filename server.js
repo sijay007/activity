@@ -17,11 +17,11 @@ const caPath = path.join(__dirname, 'ca.pem');
 if (fs.existsSync(caPath)) {
     sslConfig.ca = fs.readFileSync(caPath);
 } else {
-    // Fallback if ca.pem isn't bundled
+    // Fallback if ca.pem isn't bundled locally
     sslConfig = { rejectUnauthorized: false };
 }
 
-// Connects securely to Aiven database
+// Connects securely to your Aiven cloud database
 const pool = mysql.createPool({
     host: process.env.DB_HOST,
     port: process.env.DB_PORT || 3306,
@@ -33,10 +33,12 @@ const pool = mysql.createPool({
     connectionLimit: 10
 });
 
-// API endpoint to fetch live logs
+// API endpoint to fetch live logs mapped to your audit_logs schema
 app.get('/api/logs', async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 100');
+        const [rows] = await pool.query(
+            'SELECT id, event_type, user_identifier AS identifier, source_info AS ip_address, details, created_at FROM audit_logs ORDER BY created_at DESC LIMIT 100'
+        );
         res.json({ success: true, logs: rows });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
