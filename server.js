@@ -29,21 +29,24 @@ const pool = mysql.createPool({
     connectionLimit: 10
 });
 
-// Query live login_attempts table from your payroll system
+// Query login_attempts and explicitly alias columns so the frontend JavaScript reads them correctly
 app.get('/api/logs', async (req, res) => {
     try {
-        const [rows] = await pool.query(
-            'SELECT id, event_type, email AS identifier, ip_address, details, created_at FROM login_attempts ORDER BY created_at DESC LIMIT 100'
-        );
+        const [rows] = await pool.query(`
+            SELECT 
+                id, 
+                COALESCE(event_type, 'LOGIN_ATTEMPT') AS event_type,
+                email AS user_identifier, 
+                ip_address AS source_info, 
+                CONCAT('Status: ', success) AS details, 
+                created_at 
+            FROM login_attempts 
+            ORDER BY created_at DESC 
+            LIMIT 100
+        `);
         res.json({ success: true, logs: rows });
     } catch (err) {
-        // Fallback generic select if column names differ slightly
-        try {
-            const [fallbackRows] = await pool.query('SELECT * FROM login_attempts ORDER BY id DESC LIMIT 100');
-            res.json({ success: true, logs: fallbackRows });
-        } catch (fallbackErr) {
-            res.status(500).json({ success: false, error: err.message });
-        }
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 
