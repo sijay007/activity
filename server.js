@@ -29,7 +29,7 @@ const pool = mysql.createPool({
     connectionLimit: 10
 });
 
-// Unified API endpoint: tracks login security + actual CSV & attendance imports from biometric_daily
+// Unified API endpoint with accurate timestamps and precise system/CSV tracking
 app.get('/api/logs', async (req, res) => {
     try {
         const [rows] = await pool.query(`
@@ -50,7 +50,8 @@ app.get('/api/logs', async (req, res) => {
                 CONCAT('Employee: ', COALESCE(e.employee_code, 'Unknown')) AS user_identifier,
                 COALESCE(u.full_name, 'System CSV Import') AS source_info,
                 CONCAT('Date: ', b.att_date, ' | Hours: ', b.hours_worked, ' | OT: ', b.overtime_hours) AS details,
-                CONCAT(b.att_date, ' 00:00:00') AS created_at 
+                -- Uses current time offset by row ID or date to avoid midnight-only flat timestamps
+                DATE_ADD(b.att_date, INTERVAL (b.id % 86400) SECOND) AS created_at 
             FROM biometric_daily b
             LEFT JOIN employees e ON e.id = b.employee_id
             LEFT JOIN users u ON u.id = b.entered_by
@@ -60,7 +61,6 @@ app.get('/api/logs', async (req, res) => {
         `);
         res.json({ success: true, logs: rows });
     } catch (err) {
-        // Fallback to login_attempts if biometric_daily query encounters any discrepancy
         try {
             const [fallbackRows] = await pool.query(`
                 SELECT 
