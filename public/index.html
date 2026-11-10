@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Smart Payroll - System Activity Monitor</title>
+    <style>
+        /* Strict Pointy / Sharp Box Theme (Zero rounded corners) */
+        * {
+            border-radius: 0 !important;
+        }
+
+        body {
+            background-color: #0f1115;
+            color: #e2e8f0;
+            font-family: 'Courier New', Courier, monospace; /* Industrial / terminal look */
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: #181c24;
+            border: 1px solid #2d3748;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 5px solid #3182ce !important;
+        }
+
+        h2 {
+            margin: 0;
+            color: #63b3ed;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #181c24;
+            border: 1px solid #2d3748;
+            padding: 15px;
+            border-left: 4px solid #4a5568 !important;
+        }
+
+        .stat-card.success { border-left-color: #38a169 !important; }
+        .stat-card.danger { border-left-color: #e53e3e !important; }
+        .stat-card.warning { border-left-color: #d69e2e !important; }
+
+        .stat-title {
+            font-size: 0.75rem;
+            color: #a0aec0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-top: 5px;
+            color: #fff;
+        }
+
+        .panel {
+            background: #181c24;
+            border: 1px solid #2d3748;
+            padding: 20px;
+        }
+
+        .panel-title {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #cbd5e0;
+            border-bottom: 1px solid #2d3748;
+            padding-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #2d3748;
+        }
+
+        th {
+            background: #1f2937;
+            color: #9ca3af;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .badge {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+        .badge-success { background: #22543d; color: #9ae6b4; border: 1px solid #38a169; }
+        .badge-danger { background: #742a2a; color: #fed7d7; border: 1px solid #e53e3e; }
+        .badge-warning { background: #744210; color: #feebc8; border: 1px solid #d69e2e; }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #718096;
+            margin-top: 15px;
+        }
+
+        .live-dot {
+            height: 8px;
+            width: 8px;
+            background-color: #38a169;
+            display: inline-block;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h2>🛡️ SMART PAYROLL SYSTEM // SECURITY & AUDIT MONITOR</h2>
+            <div style="font-size: 0.85rem; color: #a0aec0; margin-top: 5px;">
+                Target Database: Aiven Cloud (Live Capstone Environment)
+            </div>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-title">Total Logs Tracked</div>
+                <div class="stat-value" id="stat-total">0</div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-title">Successful Logins</div>
+                <div class="stat-value" id="stat-success">0</div>
+            </div>
+            <div class="stat-card danger">
+                <div class="stat-title">Failed Login Attempts</div>
+                <div class="stat-value" id="stat-failed">0</div>
+            </div>
+            <div class="stat-card warning">
+                <div class="stat-title">System & CSV Actions</div>
+                <div class="stat-value" id="stat-actions">0</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">Live Audit Trail & Security Logs</div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Timestamp</th>
+                            <th>Event Type</th>
+                            <th>User / Identifier</th>
+                            <th>Source / IP</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-tbody">
+                        <tr><td colspan="6" style="text-align: center; color: #718096;">Connecting to Aiven cloud database...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="status-bar">
+                <div><span class="live-dot"></span> Connected to Aiven Cloud // Auto-refreshing every 5 seconds</div>
+                <div id="last-updated">Last sync: Never</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchLogs() {
+            try {
+                const res = await fetch('/api/logs');
+                const data = await res.json();
+                if (!data.success) return;
+
+                let s = 0, f = 0, a = 0;
+                document.getElementById('logs-tbody').innerHTML = data.logs.map(log => {
+                    let badgeClass = 'badge-warning';
+                    if (log.event_type === 'SUCCESSFUL_LOGIN') { badgeClass = 'badge-success'; s++; }
+                    else if (log.event_type === 'FAILED_LOGIN') { badgeClass = 'badge-danger'; f++; }
+                    else { a++; }
+
+                    return `
+                        <tr>
+                            <td>#${log.id}</td>
+                            <td>${new Date(log.created_at).toLocaleString()}</td>
+                            <td><span class="badge ${badgeClass}">${log.event_type}</span></td>
+                            <td><strong>${log.user_identifier}</strong></td>
+                            <td><code>${log.source_info}</code></td>
+                            <td>${log.details || '-'}</td>
+                        </tr>`;
+                }).join('');
+
+                document.getElementById('stat-total').innerText = data.logs.length;
+                document.getElementById('stat-success').innerText = s;
+                document.getElementById('stat-failed').innerText = f;
+                document.getElementById('stat-actions').innerText = a;
+                document.getElementById('last-updated').innerText = 'Last sync: ' + new Date().toLocaleTimeString();
+            } catch (err) {
+                console.error("Failed to fetch cloud logs:", err);
+            }
+        }
+
+        fetchLogs();
+        setInterval(fetchLogs, 5000);
+    </script>
+</body>
+</html>
