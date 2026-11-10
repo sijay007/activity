@@ -29,19 +29,19 @@ const pool = mysql.createPool({
     connectionLimit: 10
 });
 
-// Query login_attempts and explicitly alias columns so the frontend JavaScript reads them correctly
+// Query login_attempts and explicitly alias columns to match frontend expectations
 app.get('/api/logs', async (req, res) => {
     try {
         const [rows] = await pool.query(`
             SELECT 
                 id, 
-                COALESCE(event_type, 'LOGIN_ATTEMPT') AS event_type,
+                'LOGIN_ATTEMPT' AS event_type,
                 email AS user_identifier, 
                 ip_address AS source_info, 
-                CONCAT('Status: ', success) AS details, 
-                created_at 
+                CONCAT('Success: ', success) AS details, 
+                attempt_time AS created_at 
             FROM login_attempts 
-            ORDER BY created_at DESC 
+            ORDER BY id DESC 
             LIMIT 100
         `);
         res.json({ success: true, logs: rows });
