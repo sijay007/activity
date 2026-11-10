@@ -29,17 +29,17 @@ const pool = mysql.createPool({
     connectionLimit: 10
 });
 
-// Query login_attempts and explicitly alias columns to match frontend expectations
+// Reads directly from your capstone's login_attempts table safely
 app.get('/api/logs', async (req, res) => {
     try {
         const [rows] = await pool.query(`
             SELECT 
                 id, 
-                'LOGIN_ATTEMPT' AS event_type,
+                CASE WHEN ok = 1 THEN 'SUCCESS_LOGIN' ELSE 'FAILED_LOGIN' END AS event_type,
                 email AS user_identifier, 
-                ip_address AS source_info, 
-                CONCAT('Success: ', success) AS details, 
-                attempt_time AS created_at 
+                ip AS source_info, 
+                CONCAT('Login Status: ', IF(ok = 1, 'Success', 'Failed')) AS details, 
+                attempted_at AS created_at 
             FROM login_attempts 
             ORDER BY id DESC 
             LIMIT 100
